@@ -35,7 +35,7 @@ class Decoder(nn.Module):
 
     def get_last_hidden(self, hidden):
         last_hidden = hidden[0]
-	last_hidden = last_hidden.view(self.num_layers, 1, last_hidden.size(1), last_hidden.size(2))
+        last_hidden = last_hidden.view(self.num_layers, 1, last_hidden.size(1), last_hidden.size(2))
         last_hidden = last_hidden.transpose(2, 1).contiguous()
         last_hidden = last_hidden.view(self.num_layers, last_hidden.size(1), last_hidden.size(3))
         last_hidden = last_hidden[-1]
@@ -60,6 +60,5 @@ class Decoder(nn.Module):
         output = output.squeeze(0)
         output = self.out(output)
         output = torch.log_softmax(output, dim=1)
-        return output, hidden, ( semantic_align_weights, semantic_attn_weights ), \
-               ( semantic_align_logits, semantic_attn_logits )
-
+        return output, hidden, (semantic_align_weights, semantic_attn_weights), \
+               (semantic_align_logits, semantic_attn_logits)

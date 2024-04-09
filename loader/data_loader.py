@@ -129,7 +129,7 @@ class CustomDataset(Dataset):
 
             fin = h5py.File(fpath, 'r')
             for vid in fin.keys():
-                feats = fin[vid].value
+                feats = fin[vid][:]
                 feats_len = len(feats)
 
                 # Sample fixed number of frames
@@ -286,4 +286,3 @@ class Corpus(object):
             collate_fn=self.collate_fn)
         data_loader.captions = { k: [ ' '.join(self.transform_sentence(c)) for c in v   ] for k, v in dataset.captions.items()   }
         return data_loader
-

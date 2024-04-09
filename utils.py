@@ -171,7 +171,7 @@ def evaluate(model, val_iter, vocab, CA_lambda):
 def build_YOLO_iter(data_iter, batch_size):
     score_dataset = {}
     for batch in iter(data_iter):
-        ( vids, feats, _ ), _ = parse_batch(batch)
+        (vids, feats, _), _ = parse_batch(batch)
         for i, vid in enumerate(vids):
             feat = {}
             for model in feats:
@@ -180,8 +180,8 @@ def build_YOLO_iter(data_iter, batch_size):
                 score_dataset[vid] = feat
 
     score_iter = []
-    vids = score_dataset.keys()
-    feats = score_dataset.values()
+    vids = list(score_dataset.keys())  # Chuyển dict_keys thành list
+    feats = list(score_dataset.values())  # Chuyển dict_values thành list
     while len(vids) > 0:
         vids_batch = vids[:batch_size]
         feats_batch = defaultdict(lambda: [])
@@ -190,7 +190,7 @@ def build_YOLO_iter(data_iter, batch_size):
                 feats_batch[model].append(f)
         for model in feats_batch:
             feats_batch[model] = torch.stack(feats_batch[model], dim=0)
-        yield ( vids_batch, feats_batch )
+        yield (vids_batch, feats_batch)
         vids = vids[batch_size:]
         feats = feats[batch_size:]
 

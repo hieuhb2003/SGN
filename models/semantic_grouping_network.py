@@ -122,7 +122,7 @@ class SemanticGroupingNetwork(nn.Module):
         return outputs, contrastive_attention
 
     def forward(self, pos_vis_feats, pos_captions, neg_vis_feats, neg_captions, teacher_forcing_ratio=0.):
-        batch_size = pos_vis_feats.values()[0].size(0)
+        batch_size = next(iter(pos_vis_feats.values())).size(0)
         vocab_size = self.decoder.output_size
 
         pos_vis_feats = self.forward_visual_encoder(pos_vis_feats)

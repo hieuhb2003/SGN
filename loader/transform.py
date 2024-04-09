@@ -82,9 +82,9 @@ class TrimExceptAscii:
 
     def __call__(self, sentence):
         if self.corpus == "MSVD":
-            s = sentence.decode('ascii', 'ignore').encode('ascii')
-        elif self.corpus in [ "MSR-VTT", "VATEX", "YouCook2" ]:
-            s = sentence.encode('ascii', 'ignore')
+            s = sentence.encode('ascii', 'ignore').decode()
+        elif self.corpus in ["MSR-VTT", "VATEX", "YouCook2"]:
+            s = sentence.encode('ascii', 'ignore').decode()
         return s
 
 
