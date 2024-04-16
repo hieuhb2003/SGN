@@ -194,6 +194,27 @@ def build_YOLO_iter(data_iter, batch_size):
         vids = vids[batch_size:]
         feats = feats[batch_size:]
 
+def build_YOLO_iter_for_id(data_iter, video_id):
+    score_dataset = {}
+    for batch in iter(data_iter):
+        (vids, feats, _), _ = parse_batch(batch)
+        for i, vid in enumerate(vids):
+            if vid == video_id:
+                feat = {}
+                for model in feats:
+                    feat[model] = feats[model][i]
+                score_dataset[vid] = feat
+                break
+
+    feats = score_dataset.values()
+    feats_batch = defaultdict(lambda: [])
+    for feat in feats:
+        for model, f in feat.items():
+            feats_batch[model].append(f)
+    for model in feats_batch:
+        feats_batch[model] = torch.stack(feats_batch[model], dim=0)
+    yield (video_id, feats_batch)
+
 
 def score(model, data_iter, vocab):
     def build_refs(data_iter):
@@ -219,6 +240,12 @@ def score(model, data_iter, vocab):
     scores = calc_scores(refs, hypos)
     return scores, refs, hypos, vid2idx
 
+def generate_caption(model, data_iter, vocab, video_id):
+    YOLO_iter = build_YOLO_iter_for_id(data_iter, video_id)
+    for vid, feats in YOLO_iter:
+        captions = model.describe(feats)
+        captions = [idxs_to_sentence(caption, vocab.idx2word, vocab.word2idx['<EOS>']) for caption in captions]
+        return captions[0]
 
 # refers: https://github.com/zhegan27/SCN_for_video_captioning/blob/master/SCN_evaluation.py
 def calc_scores(ref, hypo):
