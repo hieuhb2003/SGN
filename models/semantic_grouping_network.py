@@ -132,7 +132,7 @@ class SemanticGroupingNetwork(nn.Module):
         return captions, CA_logits
 
     def describe(self, vis_feats):
-        batch_size = vis_feats.values()[0].size(0)
+        batch_size = list(vis_feats.values())[0].size(0)
         vocab_size = self.decoder.output_size
 
         vis_feats = self.forward_visual_encoder(vis_feats)

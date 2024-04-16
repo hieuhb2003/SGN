@@ -138,13 +138,13 @@ class CustomDataset(Dataset):
 
                 self.video_feats[vid][model] = feats
             fin.close()
-
-        self.save_video_feats_to_json()
-
-    def save_video_feats_to_json(self):
-        json_file = f"video_id_feats_{self.split}.json"  # Tên tệp JSON có thể tùy chỉnh theo split
-        with open(json_file, 'w') as f:
-            json.dump(self.video_feats, f)
+    #
+    #     self.save_video_feats_to_json()
+    #
+    # def save_video_feats_to_json(self):
+    #     json_file = f"video_id_feats_{self.split}.json"  # Tên tệp JSON có thể tùy chỉnh theo split
+    #     with open(json_file, 'w') as f:
+    #         json.dump(self.video_feats, f)
 
     def load_negative_vids(self):
         neg_vids_fpath = self.C.loader.split_negative_vids_fpath.format(self.split)

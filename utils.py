@@ -245,7 +245,7 @@ def generate_caption(model, data_iter, vocab, video_id):
     for vid, feats in YOLO_iter:
         captions = model.describe(feats)
         captions = [idxs_to_sentence(caption, vocab.idx2word, vocab.word2idx['<EOS>']) for caption in captions]
-        return captions[0]
+        return captions
 
 # refers: https://github.com/zhegan27/SCN_for_video_captioning/blob/master/SCN_evaluation.py
 def calc_scores(ref, hypo):
