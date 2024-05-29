@@ -145,7 +145,7 @@ class CustomDataset(Dataset):
 
     def load_negative_vids(self):
         neg_vids_fpath = self.C.loader.split_negative_vids_fpath.format(self.split)
-        if os.path.exists(+neg_vids_fpath):
+        if os.path.exists(neg_vids_fpath):
             with open(neg_vids_fpath, 'r') as fin:
                 self.vid2neg_vids = json.load(fin)
         else:
