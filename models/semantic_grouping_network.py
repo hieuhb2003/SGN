@@ -28,6 +28,8 @@ class SemanticGroupingNetwork(nn.Module):
     def forward_visual_encoder(self, vis_feats):
         app_feats = vis_feats[self.vis_encoder.app_feat]
         mot_feats = vis_feats[self.vis_encoder.mot_feat]
+        print("app_feats: ",app_feats)
+        print("mot_feats: ",mot_feats)
         vis_feats = self.vis_encoder(app_feats, mot_feats)
         return vis_feats
 
@@ -122,7 +124,9 @@ class SemanticGroupingNetwork(nn.Module):
         return outputs, contrastive_attention
 
     def forward(self, pos_vis_feats, pos_captions, neg_vis_feats, neg_captions, teacher_forcing_ratio=0.):
-        batch_size = next(iter(pos_vis_feats.values())).size(0)
+#        batch_size = pos_vis_feats.values()[0].size(0)
+        pos_vis_feats_list = list(pos_vis_feats.values())
+        batch_size = pos_vis_feats_list[0].size(0)
         vocab_size = self.decoder.output_size
 
         pos_vis_feats = self.forward_visual_encoder(pos_vis_feats)
@@ -132,10 +136,13 @@ class SemanticGroupingNetwork(nn.Module):
         return captions, CA_logits
 
     def describe(self, vis_feats):
-        batch_size = list(vis_feats.values())[0].size(0)
+        vis_feats_list = list(vis_feats.values())
+        batch_size = vis_feats_list[0].size(0)
+ #       batch_size = vis_feats.values()[0].size(0)
         vocab_size = self.decoder.output_size
 
         vis_feats = self.forward_visual_encoder(vis_feats)
+        print("before_beam_search: ",vis_feats)
         captions = self.beam_search(batch_size, vocab_size, vis_feats)
         return captions
 

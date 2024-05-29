@@ -29,13 +29,14 @@ class Decoder(nn.Module):
         self.rnn = nn.LSTM(
             input_size=self.vis_feat_size + self.embedding_size * 2,
             hidden_size=self.hidden_size,
-            num_layers=self.num_layers)
+            num_layers=self.num_layers,
+            bidirectional=True)  # Change LSTM to BiLSTM
 
-        self.out = nn.Linear(self.hidden_size, self.output_size)
+        self.out = nn.Linear(self.hidden_size * 2, self.output_size)  # Adjust the input size of the linear layer
 
     def get_last_hidden(self, hidden):
         last_hidden = hidden[0]
-        last_hidden = last_hidden.view(self.num_layers, 1, last_hidden.size(1), last_hidden.size(2))
+        last_hidden = last_hidden.view(self.num_layers, 2, last_hidden.size(1), last_hidden.size(2))  # Adjust for bidirectionality
         last_hidden = last_hidden.transpose(2, 1).contiguous()
         last_hidden = last_hidden.view(self.num_layers, last_hidden.size(1), last_hidden.size(3))
         last_hidden = last_hidden[-1]
@@ -60,5 +61,5 @@ class Decoder(nn.Module):
         output = output.squeeze(0)
         output = self.out(output)
         output = torch.log_softmax(output, dim=1)
-        return output, hidden, (semantic_align_weights, semantic_attn_weights), \
-               (semantic_align_logits, semantic_attn_logits)
+        return output, hidden, ( semantic_align_weights, semantic_attn_weights ), \
+               ( semantic_align_logits, semantic_attn_logits )

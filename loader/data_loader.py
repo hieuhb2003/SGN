@@ -14,7 +14,9 @@ from torchvision import transforms
 
 from loader.transform import Lowercase, PadFirst, PadLast, PadToLength, RemovePunctuation, \
                              SplitWithWhiteSpace, ToIndex, ToTensor, TrimExceptAscii, Truncate
-
+import torch
+from allennlp.modules.token_embedders import ElmoTokenEmbedder
+from allennlp.data.token_indexers.elmo_indexer import ELMoTokenCharactersIndexer
 
 class CustomVocab(object):
     def __init__(self, caption_fpath, init_word2idx, min_count=1, transform=str.split, embedding_size=300,
@@ -37,17 +39,14 @@ class CustomVocab(object):
         raise NotImplementedError("You should implement this function.")
 
     def load_pretrained_embedding(self, name):
-        if name == 'GloVe':
-            with open("data/Embeddings/GloVe/GloVe_300.json", 'r') as fin:
-                w2v = json.load(fin)
-        elif name == 'Word2Vec':
-            w2v = gensim.models.KeyedVectors.load_word2vec_format(
-                'data/Embeddings/Word2Vec/GoogleNews-vectors-negative300.bin',
-                binary=True)
+        if name == 'ELMo':
+            options_file = "data/Embeddings/ELMo/elmo_options.json"  # Đường dẫn đến tệp options.json của mô hình ELMo
+            weight_file = "data/Embeddings/ELMo/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"  # Đường dẫn đến tệp weights.hdf5 của mô hình ELMo
+            # Tạo ElmoTokenEmbedder và ELMoTokenCharactersIndexer từ các tệp options và weights
+            w2v = ElmoTokenEmbedder(options_file, weight_file, dropout=0)
         else:
-            raise NotImplementedError("Unknown pretrained word embedding: {}".format(w2v))
+            raise NotImplementedError("Unknown pretrained word embedding: {}".format(name))
         return w2v
-
 
     def build(self):
         captions = self.load_captions()
@@ -126,30 +125,24 @@ class CustomDataset(Dataset):
         models = [ self.C.vis_encoder.app_feat, self.C.vis_encoder.mot_feat  ]
         for model in models:
             fpath = self.C.loader.split_video_feat_fpath_tpl.format(self.C.corpus, model, self.split)
-
+            fpath = "/content/-hust-SGN/" + fpath
             fin = h5py.File(fpath, 'r')
             for vid in fin.keys():
                 feats = fin[vid][:]
                 feats_len = len(feats)
 
                 # Sample fixed number of frames
+                #get fixed number of frame of video
                 sampled_idxs = np.linspace(0, len(feats) - 1, self.C.loader.frame_sample_len, dtype=int)
                 feats = feats[sampled_idxs]
 
                 self.video_feats[vid][model] = feats
             fin.close()
-    #
-    #     self.save_video_feats_to_json()
-    #
-    # def save_video_feats_to_json(self):
-    #     json_file = f"video_id_feats_{self.split}.json"  # Tên tệp JSON có thể tùy chỉnh theo split
-    #     with open(json_file, 'w') as f:
-    #         json.dump(self.video_feats, f)
 
     def load_negative_vids(self):
         neg_vids_fpath = self.C.loader.split_negative_vids_fpath.format(self.split)
-        if os.path.exists(neg_vids_fpath):
-            with open(neg_vids_fpath, 'r') as fin:
+        if os.path.exists("/content/-hust-SGN/"+neg_vids_fpath):
+            with open("/content/-hust-SGN/"+neg_vids_fpath, 'r') as fin:
                 self.vid2neg_vids = json.load(fin)
         else:
             print("[WARNING] The file {} not found. Apply random negative sampling in {}".format(neg_vids_fpath, self.split))
@@ -180,7 +173,6 @@ class CustomDataset(Dataset):
 
 class Corpus(object):
     """ Data Loader """
-
     def __init__(self, C, vocab_cls=CustomVocab, dataset_cls=CustomDataset):
         self.C = C
         self.vocab = None
@@ -190,10 +182,8 @@ class Corpus(object):
         self.val_data_loader = None
         self.test_dataset = None
         self.test_data_loader = None
-
         self.CustomVocab = vocab_cls
         self.CustomDataset = dataset_cls
-
         self.transform_sentence = transforms.Compose([
             TrimExceptAscii(self.C.corpus),
             Lowercase(),
@@ -215,7 +205,7 @@ class Corpus(object):
             min_count=self.C.loader.min_count,
             transform=self.transform_sentence,
             embedding_size=self.C.vocab.embedding_size,
-            pretrained=self.C.vocab.pretrained)
+            pretrained='ELMo')  # Change this to 'ELMo'
 
     def build_data_loaders(self):
         """ Transformation """
@@ -291,5 +281,7 @@ class Corpus(object):
             sampler=RandomSampler(dataset, replacement=False),
             num_workers=self.C.loader.num_workers,
             collate_fn=self.collate_fn)
+
         data_loader.captions = { k: [ ' '.join(self.transform_sentence(c)) for c in v   ] for k, v in dataset.captions.items()   }
         return data_loader
+

@@ -87,6 +87,8 @@ def build_model(config, vocab):
     return model
 
 
+
+
 def parse_batch(batch):
     pos, neg = batch
     pos_vids, pos_vis_feats, pos_captions = pos
@@ -102,6 +104,12 @@ def parse_batch(batch):
     neg = ( neg_vids, neg_vis_feats, neg_captions )
     return pos, neg
 
+def get_vids_feats_pos(batch):
+    pos,_ = batch
+    pos_vids, pos_vis_feats, _ = pos
+    for model in pos_vis_feats:
+        pos_vis_feats[model] = pos_vis_feats[model].cuda()
+    return pos_vids, pos_vis_feats
 
 def train(e, model, optimizer, train_iter, vocab, teacher_forcing_ratio, CA_lambda, gradient_clip):
     model.train()
@@ -171,7 +179,7 @@ def evaluate(model, val_iter, vocab, CA_lambda):
 def build_YOLO_iter(data_iter, batch_size):
     score_dataset = {}
     for batch in iter(data_iter):
-        (vids, feats, _), _ = parse_batch(batch)
+        ( vids, feats, _ ), _ = parse_batch(batch)
         for i, vid in enumerate(vids):
             feat = {}
             for model in feats:
@@ -180,41 +188,65 @@ def build_YOLO_iter(data_iter, batch_size):
                 score_dataset[vid] = feat
 
     score_iter = []
-    vids = list(score_dataset.keys())  # Chuyển dict_keys thành list
-    feats = list(score_dataset.values())  # Chuyển dict_values thành list
+    vids = score_dataset.keys()
+    feats = score_dataset.values()
     while len(vids) > 0:
-        vids_batch = vids[:batch_size]
+        vids_list = list(vids)
+        vids_batch = vids_list[:batch_size]
         feats_batch = defaultdict(lambda: [])
-        for feat in feats[:batch_size]:
+        feats_list = list(feats)[:batch_size]
+        for feat in feats_list:
             for model, f in feat.items():
                 feats_batch[model].append(f)
         for model in feats_batch:
             feats_batch[model] = torch.stack(feats_batch[model], dim=0)
-        yield (vids_batch, feats_batch)
-        vids = vids[batch_size:]
-        feats = feats[batch_size:]
+        yield ( vids_batch, feats_batch )
+        vids_list = list(vids)
+        vids = vids_list[batch_size:]
 
-def build_YOLO_iter_for_id(data_iter, video_id):
+        feats_list = list(feats)
+        feats = feats_list[batch_size:]
+
+def build_YOLO_iter_for_predict(data_iter, batch_size , cur_vids, cur_feats):
     score_dataset = {}
     for batch in iter(data_iter):
-        (vids, feats, _), _ = parse_batch(batch)
+        vids,feats = get_vids_feats_pos(batch)
         for i, vid in enumerate(vids):
-            if vid == video_id:
-                feat = {}
-                for model in feats:
-                    feat[model] = feats[model][i]
+            feat = {}
+            for model in feats:
+                feat[model] = feats[model][i]
+            if vid not in score_dataset:
                 score_dataset[vid] = feat
-                break
 
+    vids = score_dataset.keys()
+    print("Type of vids in yolo: ", type(vids)) #Type of vids in yolo:  <class 'dict_keys'>
+    if (cur_vids == vids):
+        print("the current video id is true")
+    if (len(cur_vids) == len(vids)):
+        print("the videoId has the same len") #True
     feats = score_dataset.values()
-    feats_batch = defaultdict(lambda: [])
-    for feat in feats:
-        for model, f in feat.items():
-            feats_batch[model].append(f)
-    for model in feats_batch:
-        feats_batch[model] = torch.stack(feats_batch[model], dim=0)
-    yield (video_id, feats_batch)
-
+    if (cur_feats == feats):
+        print("the feats is ok in Yolo")
+    if (len(cur_feats)== len(feats)):
+        print("the feats has the same len") # True
+    print("Type of feats in yolo: ", type(feats)) #Type of feats in yolo:  <class 'dict_values'>
+    while len(vids) > 0:
+        vids_list = list(vids)
+        vids_batch = vids_list[:batch_size]
+        feats_batch = defaultdict(lambda: [])
+        feats_list = list(feats)[:batch_size]
+        for feat in feats_list:
+            for model, f in feat.items():
+                feats_batch[model].append(f)
+        for model in feats_batch:
+            feats_batch[model] = torch.stack(feats_batch[model], dim=0)
+        print("type of feats_batch: ", type(feats_batch)) #type of feats_batch:  defaultdict(<function build_YOLO_iter_for_predict.<locals>.<lambda> at 0x7f918b53dd80>
+        print("feats_batch: ", feats_batch)
+        yield ( feats_batch )
+        vids_list = list(vids)
+        vids = vids_list[batch_size:]
+        feats_list = list(feats)
+        feats = feats_list[batch_size:]
 
 def score(model, data_iter, vocab):
     def build_refs(data_iter):
@@ -234,18 +266,26 @@ def score(model, data_iter, vocab):
     hypos = {}
     for vids, feats in tqdm(YOLO_iter, desc='score'):
         captions = model.describe(feats)
+
         captions = [ idxs_to_sentence(caption, vocab.idx2word, vocab.word2idx['<EOS>']) for caption in captions ]
         for vid, caption in zip(vids, captions):
             hypos[vid2idx[vid]] = [ caption ]
     scores = calc_scores(refs, hypos)
     return scores, refs, hypos, vid2idx
 
-def generate_caption(model, data_iter, vocab, video_id):
-    YOLO_iter = build_YOLO_iter_for_id(data_iter, video_id)
-    for vid, feats in YOLO_iter:
+def predict(model, data_iter, vocab, cur_vids, cur_feats):
+    YOLO_iter = build_YOLO_iter_for_predict(data_iter, batch_size=1, cur_vids= cur_vids, cur_feats= cur_feats)
+    #print("Type of yolo_iter : ", type(YOLO_iter)) #Type of yolo_iter myself:  <class 'generator'>
+
+    # if (cur_feats == YOLO_iter):
+    #     print("the current features is true, ready to describe")
+    for feats in tqdm(YOLO_iter):
+        print("type of feats: ", type(feats))
+        print("cur feats: ", feats)
         captions = model.describe(feats)
-        captions = [idxs_to_sentence(caption, vocab.idx2word, vocab.word2idx['<EOS>']) for caption in captions]
-        return captions
+        captions = [ idxs_to_sentence(caption, vocab.idx2word, vocab.word2idx['<EOS>']) for caption in captions ]
+        print(captions)
+
 
 # refers: https://github.com/zhegan27/SCN_for_video_captioning/blob/master/SCN_evaluation.py
 def calc_scores(ref, hypo):

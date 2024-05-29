@@ -82,9 +82,10 @@ class TrimExceptAscii:
 
     def __call__(self, sentence):
         if self.corpus == "MSVD":
-            s = sentence.encode('ascii', 'ignore').decode()
-        elif self.corpus in ["MSR-VTT", "VATEX", "YouCook2"]:
-            s = sentence.encode('ascii', 'ignore').decode()
+            s = sentence.encode('ascii', 'ignore').decode('ascii')
+#            s = sentence.decode('ascii', 'ignore').encode('ascii')
+        elif self.corpus in [ "MSR-VTT", "VATEX", "YouCook2" ]:
+            s = sentence.encode('ascii', 'ignore')
         return s
 
 
@@ -93,6 +94,8 @@ class RemovePunctuation:
         self.regex = re.compile('[%s]' % re.escape(string.punctuation))
 
     def __call__(self, sentence):
+        if isinstance(sentence, bytes):
+            sentence = sentence.decode()
         return self.regex.sub('', sentence)
 
 

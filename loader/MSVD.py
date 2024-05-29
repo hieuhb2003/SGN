@@ -1,5 +1,4 @@
 import pandas as pd
-
 from loader.data_loader import CustomVocab, CustomDataset, Corpus
 
 
@@ -7,7 +6,7 @@ class MSVDVocab(CustomVocab):
     """ MSVD Vocaburary """
 
     def load_captions(self):
-        df = pd.read_csv(self.caption_fpath)
+        df = pd.read_csv("/content/-hust-SGN/"+ self.caption_fpath)
         df = df[df['Language'] == 'English']
         df = df[pd.notnull(df['Description'])]
         captions = df['Description'].values
@@ -18,7 +17,7 @@ class MSVDDataset(CustomDataset):
     """ MSVD Dataset """
 
     def load_captions(self):
-        df = pd.read_csv(self.caption_fpath)
+        df = pd.read_csv("/content/-hust-SGN/"+ self.caption_fpath)
         df = df[df['Language'] == 'English']
         df = df[[ 'VideoID', 'Start', 'End', 'Description' ]]
         df = df[pd.notnull(df['Description'])]

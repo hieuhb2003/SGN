@@ -30,6 +30,7 @@ def run(inputVideoID, ckpt_fpath):
     model = build_model(C, vocab)
     model.load_state_dict(torch.load(ckpt_fpath))
     model.cuda()
+    print(get_caption_for_video(inputVideoID, model, test_iter, vocab))
     print(utils.generate_caption(model,test_iter,vocab, inputVideoID))
 
 # def getCapTionInTest(inputVideoID, ckpt_fpath):
@@ -58,4 +59,4 @@ def run(inputVideoID, ckpt_fpath):
 
 if __name__ == '__main__':
     args = parse_args()
-    getCapTionInTest(args.input, args.ckpt_fpath)
+    run(args.input, args.ckpt_fpath)

@@ -32,8 +32,11 @@ def run(corpus, ckpt_fpath):
     model.cuda()
     model.eval()
 
-    scores, _, _, _ = score(model, test_iter, vocab)
-    print(scores)
+    scores, refs, hypos, _ = score(model, test_iter, vocab)
+    for index in hypos:
+        print("Index:", index)
+        print("Hypos:", hypos[index])
+        print("Refs:", refs[index])
 
 
 if __name__ == '__main__':
