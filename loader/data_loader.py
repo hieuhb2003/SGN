@@ -17,7 +17,7 @@ from loader.transform import Lowercase, PadFirst, PadLast, PadToLength, RemovePu
 import torch
 from allennlp.modules.token_embedders import ElmoTokenEmbedder
 from allennlp.data.token_indexers.elmo_indexer import ELMoTokenCharactersIndexer
-
+from allennlp.modules.elmo import Elmo, batch_to_ids
 class CustomVocab(object):
     def __init__(self, caption_fpath, init_word2idx, min_count=1, transform=str.split, embedding_size=300,
                  pretrained=None):
@@ -32,7 +32,7 @@ class CustomVocab(object):
         self.idx2word = { v: k for k, v in self.word2idx.items() }
         self.word_freq_dict = defaultdict(lambda: 0)
         self.max_sentence_len = -1
-
+        self.elmo_embedder = None
         self.build()
 
     def load_captions(self):
@@ -42,11 +42,16 @@ class CustomVocab(object):
         if name == 'ELMo':
             options_file = "data/Embeddings/ELMo/elmo_options.json"  # Đường dẫn đến tệp options.json của mô hình ELMo
             weight_file = "data/Embeddings/ELMo/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"  # Đường dẫn đến tệp weights.hdf5 của mô hình ELMo
-            # Tạo ElmoTokenEmbedder và ELMoTokenCharactersIndexer từ các tệp options và weights
-            w2v = ElmoTokenEmbedder(options_file, weight_file, dropout=0)
+            elmo = Elmo(options_file, weight_file, num_output_representations=1, dropout=0)
+
+            def embed_sentence(sentence):
+                character_ids = batch_to_ids([sentence])
+                embeddings = elmo(character_ids)
+                return embeddings['elmo_representations'][0].detach().numpy()[0]
+
+            return embed_sentence
         else:
             raise NotImplementedError("Unknown pretrained word embedding: {}".format(name))
-        return w2v
 
     def build(self):
         captions = self.load_captions()
@@ -59,7 +64,7 @@ class CustomVocab(object):
         self.n_words_untrimmed = sum(list(self.word_freq_dict.values()))
 
         words = list(self.word_freq_dict.keys())
-        keep_words = [ word for word in words if self.word_freq_dict[word] >= self.min_count ]
+        keep_words = [word for word in words if self.word_freq_dict[word] >= self.min_count]
 
         word_idx = len(self.word2idx)
         for word in keep_words:
@@ -70,19 +75,18 @@ class CustomVocab(object):
             self.idx2word[word_idx] = word
             word_idx += 1
         self.n_vocabs = len(self.idx2word.keys())
-        self.n_words = sum([ self.word_freq_dict[word] for word in keep_words ])
+        self.n_words = sum([self.word_freq_dict[word] for word in keep_words])
 
-        self.embedding_weights = np.zeros(( self.n_vocabs, self.embedding_size ))
+        self.embedding_weights = np.zeros((self.n_vocabs, self.embedding_size))
         self.pretrained_idxs = []
         if self.pretrained is not None:
-            w2v = self.load_pretrained_embedding(self.pretrained)
+            embed_sentence = self.load_pretrained_embedding(self.pretrained)
             for idx, word in self.idx2word.items():
-                if word not in w2v:
-                    self.embedding_weights[idx] = np.random.normal(size=(self.embedding_size,))
-                else:
-                    self.embedding_weights[idx] = w2v[word]
+                embedded_word = embed_sentence([word])
+                self.embedding_weights[idx] = embedded_word if embedded_word is not None else np.random.normal(
+                    size=(self.embedding_size,))
+                if embedded_word is not None:
                     self.pretrained_idxs.append(idx)
-
 
 class CustomDataset(Dataset):
     """ Dataset """
