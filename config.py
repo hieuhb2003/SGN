@@ -88,7 +88,7 @@ class PhraseEncoderConfig:
 class DecoderConfig:
     sem_align_hidden_size = 512
     sem_attn_hidden_size = 512
-    rnn_num_layers = 1
+    rnn_num_layers = 2
     rnn_hidden_size = 512
     max_teacher_forcing_ratio = 1.0
     min_teacher_forcing_ratio = 1.0
